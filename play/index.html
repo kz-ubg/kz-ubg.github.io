@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Play - VCloud</title>
+<style>
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #1c0000;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-image: linear-gradient(rgba(255, 255, 255, .09) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .09) 1px, transparent 1px);
+background-size: 50px 50px;
+  overflow: hidden;
+  font-family: sans-serif;
+}
+#enter-btn {
+  cursor: pointer;
+  font-size: clamp(48px, 12vw, 80px);
+  color: #ff7a7a;
+  text-shadow: 0 0 4px #f50000;
+}
+#loading-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#video-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  background: black;
+  z-index: 999;
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+#video-overlay.fade-out {
+  opacity: 0;
+}
+iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+iframe.show {
+  display: block;
+  opacity: 1;
+}
+</style>
+</head>
+<body>
+<div id="enter-btn">CLICK TO ENTER</div>
+<div id="video-overlay">
+  <video id="loading-video" src="../loading.mp4" preload="auto"></video>
+</div>
+<iframe id="content-frame"></iframe>
+
+<script>
+const enterBtn = document.getElementById('enter-btn');
+const videoOverlay = document.getElementById('video-overlay');
+const video = document.getElementById('loading-video');
+const iframe = document.getElementById('content-frame');
+let hasPlayed = false;
+let hashUrl = window.location.hash.substring(1) || '404.html';
+history.replaceState(null, '', window.location.pathname);
+
+enterBtn.addEventListener('click', () => {
+  if(hasPlayed) return;
+  hasPlayed = true;
+  enterBtn.remove();
+  videoOverlay.style.display = 'flex';
+  video.play();
+});
+
+video.addEventListener('ended', () => {
+  videoOverlay.classList.add('fade-out');
+  setTimeout(() => {
+    videoOverlay.style.display = 'none';
+    iframe.src = hashUrl;
+    iframe.style.display = 'block';
+    setTimeout(() => {
+      iframe.classList.add('show');
+    }, 50);
+  }, 1000);
+});
+</script>
+</body>
+</html>
