@@ -1,0 +1,58 @@
+name: Discord Notifications
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          EVENT_NAME="${{ github.event_name }}"
+          
+          if [ "$EVENT_NAME" = "push" ]; then
+            MESSAGE="🚀 **New push to \`${{ github.repository }}\`**\n👤 Author: **${{ github.actor }}**\n📝 Commit: ${{ github.event.head_commit.message }}"
+          else
+            MESSAGE="🔀 **Pull Request Event**\n📦 Repo: **${{ github.repository }}**\n👤 User: **${{ github.actor }}**\n📄 Action: **${{ github.event.action }}**"
+          fi
+
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"$MESSAGE\"}" \
+            "$DISCORD_WEBHOOK"
+name: Discord Notifications
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          EVENT_NAME="${{ github.event_name }}"
+          
+          if [ "$EVENT_NAME" = "push" ]; then
+            MESSAGE="🚀 **New push to \`${{ github.repository }}\`**\n👤 Author: **${{ github.actor }}**\n📝 Commit: ${{ github.event.head_commit.message }}"
+          else
+            MESSAGE="🔀 **Pull Request Event**\n📦 Repo: **${{ github.repository }}**\n👤 User: **${{ github.actor }}**\n📄 Action: **${{ github.event.action }}**"
+          fi
+
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"$MESSAGE\"}" \
+            "$DISCORD_WEBHOOK"
