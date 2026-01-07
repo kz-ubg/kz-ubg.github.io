@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "esbuild": "^0.27.2",
+    "fs-extra": "^11.3.3",
+    "html-minifier-terser": "^7.2.0",
+    "javascript-obfuscator": "^5.1.0"
+  },
+  "name": "kz-ubg.github.io",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kz-ubg/kz-ubg.github.io.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kz-ubg/kz-ubg.github.io/issues"
+  },
+  "homepage": "https://github.com/kz-ubg/kz-ubg.github.io#readme"
+}

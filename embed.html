@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endis - Embedded View</title>
+    <meta name="robots" content="noindex, nofollow">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0a0a0f;
+        }
+
+        /* Full black screen - click to start */
+        #click-to-start {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        /* Video overlay - appears after click */
+        #video-overlay {
+            position: fixed;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 1.5s ease;
+            z-index: 900;
+            pointer-events: none;
+        }
+        #video-overlay.active {
+            opacity: 1;
+        }
+        #video-overlay video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Proxy container - everything else */
+        #proxy-container {
+            position: fixed;
+            inset: 0;
+            z-index: 800;
+        }
+
+        iframe {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .exit-btn {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            z-index: 950;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        body:hover .exit-btn {
+            opacity: 1;
+        }
+        .exit-btn:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+
+        .loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+            background: #0a0a0f;
+            color: #f1f5f9;
+            font-family: system-ui, sans-serif;
+            z-index: 850;
+            opacity: 1;
+            transition: opacity 1s ease;
+        }
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
+    <!-- Proxy Scripts -->
+    <script src="/scram/scramjet.all.js"></script>
+    <script src="/baremux/index.js"></script>
+    <script src="/epoxy/index.js"></script>
+    <script src="/js/stealth.js"></script>
+    <script src="/js/settings-sync.js"></script>
+</head>
+<body>
+
+    <!-- 1. Black screen - click anywhere to begin -->
+    <div id="click-to-start"></div>
+
+    <!-- 2. Intro video (loading.mp4) - shown after click -->
+    <div id="video-overlay">
+        <video id="intro-video" src="loading.mp4" playsinline></video>
+    </div>
+
+    <!-- 3. Main proxy content -->
+    <div id="proxy-container">
+        <button class="exit-btn" onclick="window.location.href='/'">← Exit</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="status">Initializing proxy...</p>
+        </div>
+
+        <div id="frame-container"></div>
+    </div>
+
+    <script>
+        // Elements
+        const clickToStart = document.getElementById('click-to-start');
+        const videoOverlay = document.getElementById('video-overlay');
+        const introVideo = document.getElementById('intro-video');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        const container = document.getElementById('frame-container');
+
+        // Get target URL
+        let targetUrl = decodeURIComponent(location.hash.substring(1));
+        const params = new URLSearchParams(location.search);
+        if (params.has('url')) targetUrl = params.get('url');
+
+        // If no URL, show error immediately
+        if (!targetUrl) {
+            clickToStart.remove();
+            document.getElementById('proxy-container').innerHTML = '<div style="color:white;text-align:center;padding:2rem;font-family:system-ui;">No URL specified</div>';
+            return;
+        }
+
+        // Click to start everything
+        clickToStart.addEventListener('click', () => {
+            clickToStart.remove(); // Remove black screen
+
+            // Show and play video
+            videoOverlay.classList.add('active');
+            introVideo.play().catch(err => console.warn('Video autoplay prevented:', err));
+
+            // Start proxy initialization
+            initProxy(targetUrl);
+        });
+
+        async function initProxy(url) {
+            try {
+                status.textContent = 'Setting up proxy...';
+
+                // Wait for required scripts
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Script load timeout')), 15000);
+                    const check = () => {
+                        if (typeof $scramjetLoadController === 'function' && window.BareMux) {
+                            clearTimeout(timeout);
+                            resolve();
+                        } else {
+                            setTimeout(check, 100);
+                        }
+                    };
+                    check();
+                });
+
+                // Service worker
+                if ('serviceWorker' in navigator) {
+                    await navigator.serviceWorker.register('/sw.js');
+                    await navigator.serviceWorker.ready;
+                }
+
+                status.textContent = 'Initializing Scramjet...';
+                const { ScramjetController } = $scramjetLoadController();
+                const scramjet = new ScramjetController({
+                    files: {
+                        wasm: '/scram/scramjet.wasm.wasm',
+                        all: '/scram/scramjet.all.js',
+                        sync: '/scram/scramjet.sync.js'
+                    }
+                });
+                scramjet.init();
+
+                status.textContent = 'Configuring transport...';
+                const connection = new BareMux.BareMuxConnection('/baremux/worker.js');
+                const wispUrl = await getWispUrl();
+                await connection.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
+
+                status.textContent = 'Loading site...';
+                const sjFrame = scramjet.createFrame();
+                sjFrame.frame.style.cssText = 'position:absolute;width:100%;height:100%;border:none;';
+                container.appendChild(sjFrame.frame);
+                sjFrame.go(url);
+
+                // When the site fully loads
+                sjFrame.frame.addEventListener('load', () => {
+                    // Fade out loading spinner
+                    loading.classList.add('hidden');
+                    setTimeout(() => loading.style.display = 'none', 1000);
+
+                    // Fade out video and its audio
+                    videoOverlay.style.opacity = '0';
+                    let vol = 1;
+                    const fade = setInterval(() => {
+                        vol -= 0.05;
+                        if (vol <= 0) {
+                            introVideo.volume = 0;
+                            introVideo.pause();
+                            clearInterval(fade);
+                            videoOverlay.style.display = 'none';
+                        } else {
+                            introVideo.volume = vol;
+                        }
+                    }, 80);
+                });
+
+                // Long timeout fallback (10 min)
+                setTimeout(() => {
+                    loading.classList.add('hidden');
+                    videoOverlay.style.opacity = '0';
+                    setTimeout(() => {
+                        loading.style.display = 'none';
+                        videoOverlay.style.display = 'none';
+                    }, 1500);
+                }, 600000);
+
+            } catch (err) {
+                console.error(err);
+                loading.innerHTML = `
+                    <div style="text-align:center;color:white;">
+                        <p>Failed to load</p>
+                        <p style="font-size:12px;color:#888;margin:8px 0;">${err.message || err}</p>
+                        <button onclick="location.reload()" style="padding:8px 16px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button>
+                    </div>`;
+            }
+        }
+
+        async function getWispUrl() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const local = `${protocol}//${location.host}/wisp/`;
+            const test = url => new Promise(r => {
+                try {
+                    const ws = new WebSocket(url);
+                    const t = setTimeout(() => { ws.close(); r(false); }, 3000);
+                    ws.onopen = () => { clearTimeout(t); ws.close(); r(true); };
+                    ws.onerror = () => r(false);
+                } catch { r(false); }
+            });
+            if (await test(local)) return local;
+            const fallbacks = ['wss://anura.pro', 'wss://wisp.mercurywork.shop'];
+            for (const fb of fallbacks) if (await test(fb)) return fb;
+            return local;
+        }
+    </script>
+</body>
+</html>
